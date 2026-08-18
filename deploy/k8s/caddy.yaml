@@ -90,6 +90,9 @@ spec:
               - configMap:
                   name: caddy-route-clusterverse
                   optional: true
+              - configMap:
+                  name: caddy-route-rai
+                  optional: true
         - name: data
           hostPath:
             path: /opt/polyos/k8s-caddy/data
