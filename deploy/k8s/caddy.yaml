@@ -76,6 +76,9 @@ spec:
                   name: caddy-route-craftmatrix
                   optional: true
               - configMap:
+                  name: caddy-route-stable
+                  optional: true
+              - configMap:
                   name: caddy-route-hr-villaverde
                   optional: true
               - configMap:
