@@ -32,6 +32,13 @@ spec:
         kubernetes.io/hostname: mothership
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      hostAliases:
+        - ip: 172.65.32.248
+          hostnames:
+            - acme-v02.api.letsencrypt.org
+        - ip: 91.199.212.80
+          hostnames:
+            - acme.zerossl.com
       containers:
         - name: caddy
           image: caddy:2-alpine
