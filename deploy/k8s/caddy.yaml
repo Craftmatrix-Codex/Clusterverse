@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-base
+  namespace: polyos
+data:
+  Caddyfile: |
+    {
+        email aspirasrenz@gmail.com
+    }
+
+    import /etc/caddy/routes/*.caddy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+  namespace: polyos
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: mothership
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: caddy
+          image: caddy:2-alpine
+          ports:
+            - containerPort: 80
+              hostPort: 80
+            - containerPort: 443
+              hostPort: 443
+          volumeMounts:
+            - name: base
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+              readOnly: true
+            - name: routes
+              mountPath: /etc/caddy/routes
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: config-data
+              mountPath: /config
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: base
+          configMap:
+            name: caddy-base
+        - name: routes
+          projected:
+            sources:
+              - configMap:
+                  name: caddy-route-craftmatrix
+                  optional: true
+              - configMap:
+                  name: caddy-route-hr-villaverde
+                  optional: true
+              - configMap:
+                  name: caddy-route-gov-sandbox
+                  optional: true
+              - configMap:
+                  name: caddy-route-pc-enterprise
+                  optional: true
+              - configMap:
+                  name: caddy-route-nvsu-clinic
+                  optional: true
+              - configMap:
+                  name: caddy-route-clusterverse
+                  optional: true
+        - name: data
+          hostPath:
+            path: /opt/polyos/k8s-caddy/data
+            type: DirectoryOrCreate
+        - name: config-data
+          hostPath:
+            path: /opt/polyos/k8s-caddy/config
+            type: DirectoryOrCreate

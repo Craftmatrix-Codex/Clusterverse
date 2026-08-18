@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clusterverse-runner-cache
+  namespace: polyos-ci
+  labels:
+    app.kubernetes.io/name: clusterverse-runner
+    app.kubernetes.io/part-of: polyos-ci
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clusterverse-runner
+  namespace: polyos-ci
+  labels:
+    app.kubernetes.io/name: clusterverse-runner
+    app.kubernetes.io/part-of: polyos-ci
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: clusterverse-runner-egress
+  namespace: polyos-ci
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: clusterverse-runner
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 22
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clusterverse-runner
+  namespace: polyos-ci
+  labels:
+    app.kubernetes.io/name: clusterverse-runner
+    app.kubernetes.io/part-of: polyos-ci
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clusterverse-runner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clusterverse-runner
+        app.kubernetes.io/part-of: polyos-ci
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: doom
+      dnsPolicy: None
+      dnsConfig:
+        nameservers: [1.1.1.1, 8.8.8.8]
+        options:
+          - name: ndots
+            value: "2"
+      serviceAccountName: clusterverse-runner
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: runner
+          image: 100.121.206.107:5000/polyos/runner@sha256:2e7f317b2f7acc613139a0450c3323e4961d7e82f8358254a119976e6e2286bf
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -Eeuo pipefail
+              test "${GITHUB_ACTIONS_RUNNER_TLS_NO_VERIFY:-false}" != "true"
+              ./config.sh --unattended --replace \
+                --url "https://github.com/${RUNNER_REPOSITORY}" \
+                --token "$RUNNER_TOKEN" \
+                --name "clusterverse-runner-${HOSTNAME}" \
+                --labels "self-hosted,linux,x64,polyos,doom,clusterverse" \
+                --work _work
+              trap './config.sh remove --unattended --token "$RUNNER_TOKEN" || true' EXIT TERM INT
+              exec ./run.sh
+          env:
+            - name: RUNNER_REPOSITORY
+              value: Craftmatrix-Codex/Clusterverse
+            - name: RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: clusterverse-runner-registration
+                  key: token
+            - name: GITHUB_ACTIONS_RUNNER_TLS_NO_VERIFY
+              value: "false"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+              ephemeral-storage: 2Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+              ephemeral-storage: 12Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: runner-cache
+              mountPath: /home/runner/_work
+      volumes:
+        - name: runner-cache
+          persistentVolumeClaim:
+            claimName: clusterverse-runner-cache

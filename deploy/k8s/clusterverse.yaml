@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: clusterverse
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clusterverse
+  namespace: clusterverse
+spec:
+  selector:
+    app: clusterverse
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clusterverse
+  namespace: clusterverse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: clusterverse
+  template:
+    metadata:
+      labels:
+        app: clusterverse
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: mothership
+      imagePullSecrets:
+        - name: clusterverse-registry
+      containers:
+        - name: clusterverse
+          image: 100.121.206.107:5000/rai:bootstrap
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: clusterverse-env
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /up
+              port: 80
+            initialDelaySeconds: 45
+            periodSeconds: 20

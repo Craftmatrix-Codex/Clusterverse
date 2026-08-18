@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-route-clusterverse
+  namespace: polyos
+data:
+  dev-clusterverse.caddy: |
+    dev.craftmatrix.org {
+        reverse_proxy 10.43.94.15:80
+    }
