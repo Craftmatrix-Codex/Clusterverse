@@ -7,6 +7,7 @@ data:
   Caddyfile: |
     {
         email aspirasrenz@gmail.com
+        acme_ca https://acme-v02.api.letsencrypt.org/directory
     }
 
     import /etc/caddy/routes/*.caddy
