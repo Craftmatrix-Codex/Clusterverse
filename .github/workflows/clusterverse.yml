@@ -2,7 +2,7 @@ name: Clusterverse
 
 on:
   push:
-    branches: [canary]
+    branches: [stable]
   workflow_dispatch:
 
 permissions:
@@ -114,8 +114,6 @@ jobs:
           CLUSTERVERSE_PGDATABASE: ${{ secrets.CLUSTERVERSE_PGDATABASE }}
           CLUSTERVERSE_RUNTIME_DBUSER: ${{ secrets.CLUSTERVERSE_RUNTIME_DBUSER }}
           CLUSTERVERSE_RUNTIME_DBPASSWORD: ${{ secrets.CLUSTERVERSE_RUNTIME_DBPASSWORD }}
-          CLUSTERVERSE_HERMES_BASE_URL: ${{ secrets.CLUSTERVERSE_HERMES_BASE_URL }}
-          CLUSTERVERSE_HERMES_API_KEY: ${{ secrets.CLUSTERVERSE_HERMES_API_KEY }}
         run: |
           set -Eeuo pipefail
           install -d -m 700 "$RUNNER_TEMP/ssh"
@@ -129,7 +127,7 @@ jobs:
             "APP_NAME=Clusterverse" "APP_ENV=production" "APP_DEBUG=false" "APP_KEY=$CLUSTERVERSE_APP_KEY" "APP_URL=$APP_URL" \
             "DB_CONNECTION=pgsql" "DB_HOST=$CLUSTERVERSE_PGHOST" "DB_PORT=$CLUSTERVERSE_PGPORT" "DB_DATABASE=$CLUSTERVERSE_PGDATABASE" \
             "DB_USERNAME=$CLUSTERVERSE_RUNTIME_DBUSER" "DB_PASSWORD=$CLUSTERVERSE_RUNTIME_DBPASSWORD" \
-            "HERMES_BASE_URL=$CLUSTERVERSE_HERMES_BASE_URL" "HERMES_API_KEY=$CLUSTERVERSE_HERMES_API_KEY" | base64 -w0)
+            | base64 -w0)
           printf '%s' "$runtime_env" | ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" \
             "set -Eeuo pipefail; install -d -m 700 /opt/clusterverse/shared; base64 -d > /opt/clusterverse/shared/.env; chmod 600 /opt/clusterverse/shared/.env"
           ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "kubectl create namespace clusterverse --dry-run=client -o yaml | kubectl apply -f - >/dev/null"
