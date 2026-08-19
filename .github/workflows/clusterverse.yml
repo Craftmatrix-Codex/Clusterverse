@@ -135,7 +135,7 @@ jobs:
           ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "kubectl create namespace clusterverse --dry-run=client -o yaml | kubectl apply -f - >/dev/null"
           printf '%s\n' "$REGISTRY_PASSWORD" | ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "read -r registry_password; kubectl create secret docker-registry clusterverse-registry --namespace clusterverse --docker-server=100.121.206.107:5000 --docker-username=registry-admin --docker-password=\"\$registry_password\" --dry-run=client -o yaml | kubectl apply -f -"
           ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "kubectl create secret generic clusterverse-env --namespace clusterverse --from-env-file=/opt/clusterverse/shared/.env --dry-run=client -o yaml | kubectl apply -f -; kubectl apply -f '$remote_dir/clusterverse.yaml'; kubectl -n clusterverse set image deployment/clusterverse clusterverse='$IMAGE'; kubectl -n clusterverse rollout status deployment/clusterverse --timeout=300s; kubectl -n clusterverse exec deployment/clusterverse -- php artisan migrate --force"
-          ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "flock -w 120 /tmp/caddy-deploy.lock bash -c \"set -Eeuo pipefail; kubectl apply --dry-run=server -f '$remote_dir/caddy.yaml' -f '$remote_dir/dev-clusterverse.yaml' >/dev/null; kubectl apply -f '$remote_dir/caddy.yaml' -f '$remote_dir/dev-clusterverse.yaml'; kubectl -n polyos rollout restart deployment/caddy; kubectl -n polyos rollout status deployment/caddy --timeout=180s\""
+          ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "flock -w 120 /tmp/caddy-deploy.lock bash -c \"set -Eeuo pipefail; kubectl apply --dry-run=server -f '$remote_dir/dev-clusterverse.yaml' >/dev/null; kubectl apply -f '$remote_dir/dev-clusterverse.yaml'; kubectl -n polyos rollout restart deployment/caddy; kubectl -n polyos rollout status deployment/caddy --timeout=180s\""
           ssh "${ssh_opts[@]}" "$MOTHERSHIP_USER@$MOTHERSHIP_HOST" "rm -rf '$remote_dir'"
 
   rollback:
@@ -171,8 +171,9 @@ jobs:
           set -Eeuo pipefail
           for attempt in $(seq 1 12); do
             status="$(curl --silent --show-error --output /tmp/clusterverse-response --write-out '%{http_code}' --location --max-time 20 https://dev.craftmatrix.org/up || true)"
-            if [ "$status" = 200 ]; then
-              printf 'Clusterverse GET /up: HTTP %s\n' "$status"
+            root_status="$(curl --silent --show-error --output /tmp/clusterverse-root --write-out '%{http_code}' --location --max-time 20 https://dev.craftmatrix.org/ || true)"
+            if [ "$status" = 200 ] && [ "$root_status" = 200 ]; then
+              printf 'Clusterverse GET /up: HTTP %s; /: HTTP %s\n' "$status" "$root_status"
               exit 0
             fi
             printf 'Attempt %s: HTTP %s\n' "$attempt" "$status"

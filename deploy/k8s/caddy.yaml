@@ -96,6 +96,15 @@ spec:
               - configMap:
                   name: caddy-route-rai
                   optional: true
+              - configMap:
+                  name: caddy-route-blig
+                  optional: true
+              - configMap:
+                  name: caddy-route-siglat
+                  optional: true
+              - configMap:
+                  name: caddy-route-stable
+                  optional: true
         - name: data
           hostPath:
             path: /opt/polyos/k8s-caddy/data
